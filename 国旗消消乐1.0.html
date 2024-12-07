@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>国旗消消乐游戏</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+      background-image: url('https://upload.wikimedia.org/wikipedia/commons/8/83/World_map_blank_without_borders.png');
+      background-repeat: no-repeat;
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      opacity: 0.8;
+    }
+    .container {
+      display: grid;
+      gap: 10px;
+      justify-content: center;
+      align-items: center;
+      margin: 20px auto;
+      width: 80%; /* 容器宽度为屏幕宽度的80% */
+      background-color: rgba(255, 255, 255, 0.8);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .card {
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      padding: 0;
+      cursor: pointer;
+      background-color: #fff;
+      text-align: center;
+      position: relative;
+      transition: background-color 0.3s;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .card img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: cover;
+    }
+    .card span {
+      font-size: calc(1.5vw + 1.5vh);
+      padding: 5px;
+      word-wrap: break-word;
+    }
+    .hidden {
+      animation: flyOut 1s ease-out forwards;
+    }
+    @keyframes flyOut {
+      0% { opacity: 1; transform: translate(0, 0); }
+      100% {
+        opacity: 0;
+        transform: translate(var(--x), var(--y));
+      }
+    }
+    .stats {
+      margin: 20px;
+      font-size: 18px;
+    }
+    .controls {
+      margin: 20px;
+    }
+    .refresh-button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+    .refresh-button:hover {
+      background-color: #0056b3;
+    }
+
+    /* 动态布局 */
+    @media (max-width: 600px) {
+      .container {
+        grid-template-columns: repeat(4, 1fr); /* 手机竖屏：4列 */
+      }
+    }
+    @media (min-width: 601px) and (max-width: 1024px) {
+      .container {
+        grid-template-columns: repeat(6, 1fr); /* 平板：6列 */
+      }
+    }
+    @media (min-width: 1025px) {
+      .container {
+        grid-template-columns: repeat(8, 1fr); /* 电脑：8列 */
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>国旗消消乐游戏</h1>
+  <p>点击国旗、中文国名和英文国名，三个匹配后卡片将消失！</p>
+  <div class="stats">
+    <span id="timer">时间：0秒</span> | <span id="score">得分：0</span>
+    <br>
+    <span id="errors">错误：0次</span>
+  </div>
+  <div id="message"></div>
+  <div class="container" id="gameBoard"></div>
+  <div class="controls">
+    <button id="prevLevel" disabled>上一关</button>
+    <button id="nextLevel">下一关</button>
+    <button class="refresh-button" id="refresh">刷新当前关卡</button>
+  </div>
+  <script>
+    const countries = [
+      { name: "China", zh: "中国", region: "Asia", flag: "https://flagcdn.com/w320/cn.png" },
+      { name: "USA", zh: "美国", region: "North America", flag: "https://flagcdn.com/w320/us.png" },
+      { name: "Japan", zh: "日本", region: "Asia", flag: "https://flagcdn.com/w320/jp.png" },
+      { name: "Germany", zh: "德国", region: "Europe", flag: "https://flagcdn.com/w320/de.png" },
+      { name: "France", zh: "法国", region: "Europe", flag: "https://flagcdn.com/w320/fr.png" },
+      { name: "Brazil", zh: "巴西", region: "South America", flag: "https://flagcdn.com/w320/br.png" },
+      { name: "Canada", zh: "加拿大", region: "North America", flag: "https://flagcdn.com/w320/ca.png" },
+      { name: "Australia", zh: "澳大利亚", region: "Oceania", flag: "https://flagcdn.com/w320/au.png" },
+      { name: "India", zh: "印度", region: "Asia", flag: "https://flagcdn.com/w320/in.png" },
+      { name: "South Africa", zh: "南非", region: "Africa", flag: "https://flagcdn.com/w320/za.png" },
+      { name: "Russia", zh: "俄罗斯", region: "Europe", flag: "https://flagcdn.com/w320/ru.png" },
+      { name: "Italy", zh: "意大利", region: "Europe", flag: "https://flagcdn.com/w320/it.png" },
+
+  { name: "Spain", zh: "西班牙", region: "Europe", flag: "https://flagcdn.com/w320/es.png" },
+  { name: "Mexico", zh: "墨西哥", region: "North America", flag: "https://flagcdn.com/w320/mx.png" },
+  { name: "South Korea", zh: "韩国", region: "Asia", flag: "https://flagcdn.com/w320/kr.png" },
+  { name: "Egypt", zh: "埃及", region: "Africa", flag: "https://flagcdn.com/w320/eg.png" },
+  { name: "Turkey", zh: "土耳其", region: "Asia", flag: "https://flagcdn.com/w320/tr.png" },
+  { name: "United Kingdom", zh: "英国", region: "Europe", flag: "https://flagcdn.com/w320/gb.png" },
+  { name: "New Zealand", zh: "新西兰", region: "Oceania", flag: "https://flagcdn.com/w320/nz.png" },
+  { name: "Thailand", zh: "泰国", region: "Asia", flag: "https://flagcdn.com/w320/th.png" },
+  { name: "Nigeria", zh: "尼日利亚", region: "Africa", flag: "https://flagcdn.com/w320/ng.png" },
+  { name: "Sweden", zh: "瑞典", region: "Europe", flag: "https://flagcdn.com/w320/se.png" },
+  { name: "Norway", zh: "挪威", region: "Europe", flag: "https://flagcdn.com/w320/no.png" },
+  { name: "Colombia", zh: "哥伦比亚", region: "South America", flag: "https://flagcdn.com/w320/co.png" },
+  { name: "Chile", zh: "智利", region: "South America", flag: "https://flagcdn.com/w320/cl.png" },
+  { name: "Portugal", zh: "葡萄牙", region: "Europe", flag: "https://flagcdn.com/w320/pt.png" },
+  { name: "Saudi Arabia", zh: "沙特阿拉伯", region: "Asia", flag: "https://flagcdn.com/w320/sa.png" },
+  { name: "Vietnam", zh: "越南", region: "Asia", flag: "https://flagcdn.com/w320/vn.png" },
+  { name: "Netherlands", zh: "荷兰", region: "Europe", flag: "https://flagcdn.com/w320/nl.png" },
+  { name: "Pakistan", zh: "巴基斯坦", region: "Asia", flag: "https://flagcdn.com/w320/pk.png" },
+  { name: "Argentina", zh: "阿根廷", region: "South America", flag: "https://flagcdn.com/w320/ar.png" },
+  { name: "Philippines", zh: "菲律宾", region: "Asia", flag: "https://flagcdn.com/w320/ph.png" },
+  { name: "Belgium", zh: "比利时", region: "Europe", flag: "https://flagcdn.com/w320/be.png" },
+  { name: "Malaysia", zh: "马来西亚", region: "Asia", flag: "https://flagcdn.com/w320/my.png" },
+  { name: "Singapore", zh: "新加坡", region: "Asia", flag: "https://flagcdn.com/w320/sg.png" },
+  { name: "Peru", zh: "秘鲁", region: "South America", flag: "https://flagcdn.com/w320/pe.png" },
+  { name: "Kenya", zh: "肯尼亚", region: "Africa", flag: "https://flagcdn.com/w320/ke.png" },
+  { name: "Denmark", zh: "丹麦", region: "Europe", flag: "https://flagcdn.com/w320/dk.png" },
+  { name: "Israel", zh: "以色列", region: "Asia", flag: "https://flagcdn.com/w320/il.png" },
+  { name: "Poland", zh: "波兰", region: "Europe", flag: "https://flagcdn.com/w320/pl.png" },
+  { name: "Ukraine", zh: "乌克兰", region: "Europe", flag: "https://flagcdn.com/w320/ua.png" },
+  { name: "Bangladesh", zh: "孟加拉国", region: "Asia", flag: "https://flagcdn.com/w320/bd.png" },
+  { name: "Iran", zh: "伊朗", region: "Asia", flag: "https://flagcdn.com/w320/ir.png" },
+  { name: "Greece", zh: "希腊", region: "Europe", flag: "https://flagcdn.com/w320/gr.png" },
+  { name: "Czech Republic", zh: "捷克", region: "Europe", flag: "https://flagcdn.com/w320/cz.png" },
+  { name: "Hungary", zh: "匈牙利", region: "Europe", flag: "https://flagcdn.com/w320/hu.png" },
+  { name: "South Sudan", zh: "南苏丹", region: "Africa", flag: "https://flagcdn.com/w320/ss.png" },
+  { name: "Ethiopia", zh: "埃塞俄比亚", region: "Africa", flag: "https://flagcdn.com/w320/et.png" },
+  { name: "Zambia", zh: "赞比亚", region: "Africa", flag: "https://flagcdn.com/w320/zm.png" },
+  { name: "Tanzania", zh: "坦桑尼亚", region: "Africa", flag: "https://flagcdn.com/w320/tz.png" },
+  { name: "Mozambique", zh: "莫桑比克", region: "Africa", flag: "https://flagcdn.com/w320/mz.png" },
+  { name: "Uganda", zh: "乌干达", region: "Africa", flag: "https://flagcdn.com/w320/ug.png" },
+  { name: "Ghana", zh: "加纳", region: "Africa", flag: "https://flagcdn.com/w320/gh.png" },
+
+  { name: "Morocco", zh: "摩洛哥", region: "Africa", flag: "https://flagcdn.com/w320/ma.png" },
+  { name: "Algeria", zh: "阿尔及利亚", region: "Africa", flag: "https://flagcdn.com/w320/dz.png" },
+  { name: "Tunisia", zh: "突尼斯", region: "Africa", flag: "https://flagcdn.com/w320/tn.png" },
+  { name: "Libya", zh: "利比亚", region: "Africa", flag: "https://flagcdn.com/w320/ly.png" },
+  { name: "Sudan", zh: "苏丹", region: "Africa", flag: "https://flagcdn.com/w320/sd.png" },
+  { name: "Angola", zh: "安哥拉", region: "Africa", flag: "https://flagcdn.com/w320/ao.png" },
+  { name: "Ivory Coast", zh: "科特迪瓦", region: "Africa", flag: "https://flagcdn.com/w320/ci.png" },
+  { name: "Senegal", zh: "塞内加尔", region: "Africa", flag: "https://flagcdn.com/w320/sn.png" },
+  { name: "Congo", zh: "刚果（布）", region: "Africa", flag: "https://flagcdn.com/w320/cg.png" },
+  { name: "DR Congo", zh: "刚果（金）", region: "Africa", flag: "https://flagcdn.com/w320/cd.png" },
+  { name: "Cameroon", zh: "喀麦隆", region: "Africa", flag: "https://flagcdn.com/w320/cm.png" },
+  { name: "Botswana", zh: "博茨瓦纳", region: "Africa", flag: "https://flagcdn.com/w320/bw.png" },
+  { name: "Namibia", zh: "纳米比亚", region: "Africa", flag: "https://flagcdn.com/w320/na.png" },
+  { name: "Madagascar", zh: "马达加斯加", region: "Africa", flag: "https://flagcdn.com/w320/mg.png" },
+  { name: "Zimbabwe", zh: "津巴布韦", region: "Africa", flag: "https://flagcdn.com/w320/zw.png" },
+  { name: "Eritrea", zh: "厄立特里亚", region: "Africa", flag: "https://flagcdn.com/w320/er.png" },
+  { name: "Djibouti", zh: "吉布提", region: "Africa", flag: "https://flagcdn.com/w320/dj.png" },
+  { name: "Somalia", zh: "索马里", region: "Africa", flag: "https://flagcdn.com/w320/so.png" },
+  { name: "Qatar", zh: "卡塔尔", region: "Asia", flag: "https://flagcdn.com/w320/qa.png" },
+  { name: "United Arab Emirates", zh: "阿联酋", region: "Asia", flag: "https://flagcdn.com/w320/ae.png" },
+  { name: "Bahrain", zh: "巴林", region: "Asia", flag: "https://flagcdn.com/w320/bh.png" },
+  { name: "Kuwait", zh: "科威特", region: "Asia", flag: "https://flagcdn.com/w320/kw.png" },
+  { name: "Oman", zh: "阿曼", region: "Asia", flag: "https://flagcdn.com/w320/om.png" },
+  { name: "Jordan", zh: "约旦", region: "Asia", flag: "https://flagcdn.com/w320/jo.png" },
+  { name: "Syria", zh: "叙利亚", region: "Asia", flag: "https://flagcdn.com/w320/sy.png" },
+  { name: "Lebanon", zh: "黎巴嫩", region: "Asia", flag: "https://flagcdn.com/w320/lb.png" },
+  { name: "Iraq", zh: "伊拉克", region: "Asia", flag: "https://flagcdn.com/w320/iq.png" },
+  { name: "Yemen", zh: "也门", region: "Asia", flag: "https://flagcdn.com/w320/ye.png" },
+  { name: "Afghanistan", zh: "阿富汗", region: "Asia", flag: "https://flagcdn.com/w320/af.png" },
+  { name: "Nepal", zh: "尼泊尔", region: "Asia", flag: "https://flagcdn.com/w320/np.png" },
+  { name: "Sri Lanka", zh: "斯里兰卡", region: "Asia", flag: "https://flagcdn.com/w320/lk.png" },
+  { name: "Bhutan", zh: "不丹", region: "Asia", flag: "https://flagcdn.com/w320/bt.png" },
+  { name: "Maldives", zh: "马尔代夫", region: "Asia", flag: "https://flagcdn.com/w320/mv.png" },
+  { name: "Kazakhstan", zh: "哈萨克斯坦", region: "Asia", flag: "https://flagcdn.com/w320/kz.png" },
+  { name: "Uzbekistan", zh: "乌兹别克斯坦", region: "Asia", flag: "https://flagcdn.com/w320/uz.png" },
+  { name: "Turkmenistan", zh: "土库曼斯坦", region: "Asia", flag: "https://flagcdn.com/w320/tm.png" },
+  { name: "Kyrgyzstan", zh: "吉尔吉斯斯坦", region: "Asia", flag: "https://flagcdn.com/w320/kg.png" },
+  { name: "Tajikistan", zh: "塔吉克斯坦", region: "Asia", flag: "https://flagcdn.com/w320/tj.png" },
+  { name: "Mongolia", zh: "蒙古", region: "Asia", flag: "https://flagcdn.com/w320/mn.png" },
+  { name: "Papua New Guinea", zh: "巴布亚新几内亚", region: "Oceania", flag: "https://flagcdn.com/w320/pg.png" },
+  { name: "Fiji", zh: "斐济", region: "Oceania", flag: "https://flagcdn.com/w320/fj.png" },
+  { name: "Samoa", zh: "萨摩亚", region: "Oceania", flag: "https://flagcdn.com/w320/ws.png" },
+  { name: "Tonga", zh: "汤加", region: "Oceania", flag: "https://flagcdn.com/w320/to.png" },
+  { name: "Vanuatu", zh: "瓦努阿图", region: "Oceania", flag: "https://flagcdn.com/w320/vu.png" },
+  { name: "Solomon Islands", zh: "所罗门群岛", region: "Oceania", flag: "https://flagcdn.com/w320/sb.png" },
+
+  { name: "Brunei", zh: "文莱", region: "Asia", flag: "https://flagcdn.com/w320/bn.png" },
+  { name: "Laos", zh: "老挝", region: "Asia", flag: "https://flagcdn.com/w320/la.png" },
+  { name: "Cambodia", zh: "柬埔寨", region: "Asia", flag: "https://flagcdn.com/w320/kh.png" },
+  { name: "Myanmar", zh: "缅甸", region: "Asia", flag: "https://flagcdn.com/w320/mm.png" },
+  { name: "Belarus", zh: "白俄罗斯", region: "Europe", flag: "https://flagcdn.com/w320/by.png" },
+  { name: "Lithuania", zh: "立陶宛", region: "Europe", flag: "https://flagcdn.com/w320/lt.png" },
+  { name: "Latvia", zh: "拉脱维亚", region: "Europe", flag: "https://flagcdn.com/w320/lv.png" },
+  { name: "Estonia", zh: "爱沙尼亚", region: "Europe", flag: "https://flagcdn.com/w320/ee.png" },
+  { name: "Slovakia", zh: "斯洛伐克", region: "Europe", flag: "https://flagcdn.com/w320/sk.png" },
+  { name: "Slovenia", zh: "斯洛文尼亚", region: "Europe", flag: "https://flagcdn.com/w320/si.png" },
+  { name: "Croatia", zh: "克罗地亚", region: "Europe", flag: "https://flagcdn.com/w320/hr.png" },
+  { name: "Bosnia and Herzegovina", zh: "波黑", region: "Europe", flag: "https://flagcdn.com/w320/ba.png" },
+  { name: "Montenegro", zh: "黑山", region: "Europe", flag: "https://flagcdn.com/w320/me.png" },
+  { name: "Albania", zh: "阿尔巴尼亚", region: "Europe", flag: "https://flagcdn.com/w320/al.png" },
+  { name: "Serbia", zh: "塞尔维亚", region: "Europe", flag: "https://flagcdn.com/w320/rs.png" },
+  { name: "Kosovo", zh: "科索沃", region: "Europe", flag: "https://flagcdn.com/w320/xk.png" },
+  { name: "North Macedonia", zh: "北马其顿", region: "Europe", flag: "https://flagcdn.com/w320/mk.png" },
+  { name: "Malta", zh: "马耳他", region: "Europe", flag: "https://flagcdn.com/w320/mt.png" },
+  { name: "Cyprus", zh: "塞浦路斯", region: "Europe", flag: "https://flagcdn.com/w320/cy.png" },
+  { name: "Andorra", zh: "安道尔", region: "Europe", flag: "https://flagcdn.com/w320/ad.png" },
+  { name: "Liechtenstein", zh: "列支敦士登", region: "Europe", flag: "https://flagcdn.com/w320/li.png" },
+  { name: "Monaco", zh: "摩纳哥", region: "Europe", flag: "https://flagcdn.com/w320/mc.png" },
+  { name: "San Marino", zh: "圣马力诺", region: "Europe", flag: "https://flagcdn.com/w320/sm.png" },
+  { name: "Vatican City", zh: "梵蒂冈", region: "Europe", flag: "https://flagcdn.com/w320/va.png" },
+  { name: "Belize", zh: "伯利兹", region: "North America", flag: "https://flagcdn.com/w320/bz.png" },
+  { name: "Guatemala", zh: "危地马拉", region: "North America", flag: "https://flagcdn.com/w320/gt.png" },
+  { name: "El Salvador", zh: "萨尔瓦多", region: "North America", flag: "https://flagcdn.com/w320/sv.png" },
+  { name: "Honduras", zh: "洪都拉斯", region: "North America", flag: "https://flagcdn.com/w320/hn.png" },
+  { name: "Nicaragua", zh: "尼加拉瓜", region: "North America", flag: "https://flagcdn.com/w320/ni.png" },
+  { name: "Costa Rica", zh: "哥斯达黎加", region: "North America", flag: "https://flagcdn.com/w320/cr.png" },
+  { name: "Panama", zh: "巴拿马", region: "North America", flag: "https://flagcdn.com/w320/pa.png" },
+  { name: "Cuba", zh: "古巴", region: "North America", flag: "https://flagcdn.com/w320/cu.png" },
+  { name: "Jamaica", zh: "牙买加", region: "North America", flag: "https://flagcdn.com/w320/jm.png" },
+  { name: "Haiti", zh: "海地", region: "North America", flag: "https://flagcdn.com/w320/ht.png" },
+  { name: "Dominican Republic", zh: "多米尼加共和国", region: "North America", flag: "https://flagcdn.com/w320/do.png" },
+  { name: "Bahamas", zh: "巴哈马", region: "North America", flag: "https://flagcdn.com/w320/bs.png" },
+  { name: "Barbados", zh: "巴巴多斯", region: "North America", flag: "https://flagcdn.com/w320/bb.png" },
+  { name: "Saint Lucia", zh: "圣卢西亚", region: "North America", flag: "https://flagcdn.com/w320/lc.png" },
+  { name: "Grenada", zh: "格林纳达", region: "North America", flag: "https://flagcdn.com/w320/gd.png" },
+  { name: "Trinidad and Tobago", zh: "特立尼达和多巴哥", region: "North America", flag: "https://flagcdn.com/w320/tt.png" },
+  { name: "Antigua and Barbuda", zh: "安提瓜和巴布达", region: "North America", flag: "https://flagcdn.com/w320/ag.png" },
+  { name: "Saint Kitts and Nevis", zh: "圣基茨和尼维斯", region: "North America", flag: "https://flagcdn.com/w320/kn.png" },
+  { name: "Dominica", zh: "多米尼克", region: "North America", flag: "https://flagcdn.com/w320/dm.png" },
+  { name: "Suriname", zh: "苏里南", region: "South America", flag: "https://flagcdn.com/w320/sr.png" },
+  { name: "Guyana", zh: "圭亚那", region: "South America", flag: "https://flagcdn.com/w320/gy.png" },
+  { name: "Paraguay", zh: "巴拉圭", region: "South America", flag: "https://flagcdn.com/w320/py.png" },
+  { name: "Uruguay", zh: "乌拉圭", region: "South America", flag: "https://flagcdn.com/w320/uy.png" },
+
+	
+  { name: "Bolivia", zh: "玻利维亚", region: "South America", flag: "https://flagcdn.com/w320/bo.png" },
+  { name: "Ecuador", zh: "厄瓜多尔", region: "South America", flag: "https://flagcdn.com/w320/ec.png" },
+  { name: "Venezuela", zh: "委内瑞拉", region: "South America", flag: "https://flagcdn.com/w320/ve.png" },
+  { name: "Belarus", zh: "白俄罗斯", region: "Europe", flag: "https://flagcdn.com/w320/by.png" },
+  { name: "Luxembourg", zh: "卢森堡", region: "Europe", flag: "https://flagcdn.com/w320/lu.png" },
+  { name: "Iceland", zh: "冰岛", region: "Europe", flag: "https://flagcdn.com/w320/is.png" },
+  { name: "Armenia", zh: "亚美尼亚", region: "Asia", flag: "https://flagcdn.com/w320/am.png" },
+  { name: "Azerbaijan", zh: "阿塞拜疆", region: "Asia", flag: "https://flagcdn.com/w320/az.png" },
+  { name: "Georgia", zh: "格鲁吉亚", region: "Asia", flag: "https://flagcdn.com/w320/ge.png" },
+  { name: "Uzbekistan", zh: "乌兹别克斯坦", region: "Asia", flag: "https://flagcdn.com/w320/uz.png" },
+  { name: "Kazakhstan", zh: "哈萨克斯坦", region: "Asia", flag: "https://flagcdn.com/w320/kz.png" },
+  { name: "Kyrgyzstan", zh: "吉尔吉斯斯坦", region: "Asia", flag: "https://flagcdn.com/w320/kg.png" },
+  { name: "Tajikistan", zh: "塔吉克斯坦", region: "Asia", flag: "https://flagcdn.com/w320/tj.png" },
+  { name: "Turkmenistan", zh: "土库曼斯坦", region: "Asia", flag: "https://flagcdn.com/w320/tm.png" },
+  { name: "Malta", zh: "马耳他", region: "Europe", flag: "https://flagcdn.com/w320/mt.png" },
+  { name: "Vatican City", zh: "梵蒂冈", region: "Europe", flag: "https://flagcdn.com/w320/va.png" },
+  { name: "San Marino", zh: "圣马力诺", region: "Europe", flag: "https://flagcdn.com/w320/sm.png" },
+  { name: "Monaco", zh: "摩纳哥", region: "Europe", flag: "https://flagcdn.com/w320/mc.png" },
+  { name: "Liechtenstein", zh: "列支敦士登", region: "Europe", flag: "https://flagcdn.com/w320/li.png" },
+  { name: "Andorra", zh: "安道尔", region: "Europe", flag: "https://flagcdn.com/w320/ad.png" },
+  { name: "Fiji", zh: "斐济", region: "Oceania", flag: "https://flagcdn.com/w320/fj.png" },
+  { name: "Papua New Guinea", zh: "巴布亚新几内亚", region: "Oceania", flag: "https://flagcdn.com/w320/pg.png" },
+  { name: "Tonga", zh: "汤加", region: "Oceania", flag: "https://flagcdn.com/w320/to.png" },
+  { name: "Samoa", zh: "萨摩亚", region: "Oceania", flag: "https://flagcdn.com/w320/ws.png" },
+  { name: "Solomon Islands", zh: "所罗门群岛", region: "Oceania", flag: "https://flagcdn.com/w320/sb.png" },
+  { name: "Vanuatu", zh: "瓦努阿图", region: "Oceania", flag: "https://flagcdn.com/w320/vu.png" },
+  { name: "Kiribati", zh: "基里巴斯", region: "Oceania", flag: "https://flagcdn.com/w320/ki.png" },
+  { name: "Marshall Islands", zh: "马绍尔群岛", region: "Oceania", flag: "https://flagcdn.com/w320/mh.png" },
+  { name: "Palau", zh: "帕劳", region: "Oceania", flag: "https://flagcdn.com/w320/pw.png" },
+  { name: "Micronesia", zh: "密克罗尼西亚", region: "Oceania", flag: "https://flagcdn.com/w320/fm.png" },
+  { name: "Nauru", zh: "瑙鲁", region: "Oceania", flag: "https://flagcdn.com/w320/nr.png" },
+  { name: "Tuvalu", zh: "图瓦卢", region: "Oceania", flag: "https://flagcdn.com/w320/tv.png" },
+  { name: "Lesotho", zh: "莱索托", region: "Africa", flag: "https://flagcdn.com/w320/ls.png" },
+  { name: "Eswatini", zh: "斯威士兰", region: "Africa", flag: "https://flagcdn.com/w320/sz.png" },
+  { name: "Mauritius", zh: "毛里求斯", region: "Africa", flag: "https://flagcdn.com/w320/mu.png" },
+  { name: "Seychelles", zh: "塞舌尔", region: "Africa", flag: "https://flagcdn.com/w320/sc.png" },
+  { name: "Comoros", zh: "科摩罗", region: "Africa", flag: "https://flagcdn.com/w320/km.png" },
+  { name: "Cape Verde", zh: "佛得角", region: "Africa", flag: "https://flagcdn.com/w320/cv.png" },
+  { name: "Equatorial Guinea", zh: "赤道几内亚", region: "Africa", flag: "https://flagcdn.com/w320/gq.png" },
+  { name: "Gabon", zh: "加蓬", region: "Africa", flag: "https://flagcdn.com/w320/ga.png" },
+  { name: "Burundi", zh: "布隆迪", region: "Africa", flag: "https://flagcdn.com/w320/bi.png" },
+  { name: "Rwanda", zh: "卢旺达", region: "Africa", flag: "https://flagcdn.com/w320/rw.png" },
+  { name: "Djibouti", zh: "吉布提", region: "Africa", flag: "https://flagcdn.com/w320/dj.png" },
+  { name: "Chad", zh: "乍得", region: "Africa", flag: "https://flagcdn.com/w320/td.png" },
+  { name: "Central African Republic", zh: "中非共和国", region: "Africa", flag: "https://flagcdn.com/w320/cf.png" },
+  { name: "Liberia", zh: "利比里亚", region: "Africa", flag: "https://flagcdn.com/w320/lr.png" },
+  { name: "Sierra Leone", zh: "塞拉利昂", region: "Africa", flag: "https://flagcdn.com/w320/sl.png" },
+  { name: "Guinea", zh: "几内亚", region: "Africa", flag: "https://flagcdn.com/w320/gn.png" },
+  { name: "Guinea-Bissau", zh: "几内亚比绍", region: "Africa", flag: "https://flagcdn.com/w320/gw.png" },
+  { name: "Togo", zh: "多哥", region: "Africa", flag: "https://flagcdn.com/w320/tg.png" },
+  { name: "Benin", zh: "贝宁", region: "Africa", flag: "https://flagcdn.com/w320/bj.png" },
+
+
+  { name: "Gambia", zh: "冈比亚", region: "Africa", flag: "https://flagcdn.com/w320/gm.png" },
+  { name: "Eritrea", zh: "厄立特里亚", region: "Africa", flag: "https://flagcdn.com/w320/er.png" },
+  { name: "Malawi", zh: "马拉维", region: "Africa", flag: "https://flagcdn.com/w320/mw.png" },
+  { name: "Burkina Faso", zh: "布基纳法索", region: "Africa", flag: "https://flagcdn.com/w320/bf.png" },
+  { name: "Niger", zh: "尼日尔", region: "Africa", flag: "https://flagcdn.com/w320/ne.png" },
+  { name: "Somalia", zh: "索马里", region: "Africa", flag: "https://flagcdn.com/w320/so.png" },
+  { name: "Zambia", zh: "赞比亚", region: "Africa", flag: "https://flagcdn.com/w320/zm.png" },
+  { name: "Mozambique", zh: "莫桑比克", region: "Africa", flag: "https://flagcdn.com/w320/mz.png" },
+  { name: "Mauritania", zh: "毛里塔尼亚", region: "Africa", flag: "https://flagcdn.com/w320/mr.png" },
+  { name: "Eswatini", zh: "斯威士兰", region: "Africa", flag: "https://flagcdn.com/w320/sz.png" },
+  { name: "South Sudan", zh: "南苏丹", region: "Africa", flag: "https://flagcdn.com/w320/ss.png" },
+  { name: "Madagascar", zh: "马达加斯加", region: "Africa", flag: "https://flagcdn.com/w320/mg.png" },
+  { name: "Tanzania", zh: "坦桑尼亚", region: "Africa", flag: "https://flagcdn.com/w320/tz.png" },
+  { name: "Uganda", zh: "乌干达", region: "Africa", flag: "https://flagcdn.com/w320/ug.png" },
+  { name: "Botswana", zh: "博茨瓦纳", region: "Africa", flag: "https://flagcdn.com/w320/bw.png" },
+  { name: "Namibia", zh: "纳米比亚", region: "Africa", flag: "https://flagcdn.com/w320/na.png" },
+  { name: "Zimbabwe", zh: "津巴布韦", region: "Africa", flag: "https://flagcdn.com/w320/zw.png" },
+  { name: "Angola", zh: "安哥拉", region: "Africa", flag: "https://flagcdn.com/w320/ao.png" },
+  { name: "Côte d'Ivoire", zh: "科特迪瓦", region: "Africa", flag: "https://flagcdn.com/w320/ci.png" },
+  { name: "Congo", zh: "刚果（布）", region: "Africa", flag: "https://flagcdn.com/w320/cg.png" },
+  { name: "Democratic Republic of the Congo", zh: "刚果（金）", region: "Africa", flag: "https://flagcdn.com/w320/cd.png" },
+  { name: "Cameroon", zh: "喀麦隆", region: "Africa", flag: "https://flagcdn.com/w320/cm.png" },
+  { name: "Ethiopia", zh: "埃塞俄比亚", region: "Africa", flag: "https://flagcdn.com/w320/et.png" },
+  { name: "Rwanda", zh: "卢旺达", region: "Africa", flag: "https://flagcdn.com/w320/rw.png" },
+  { name: "Djibouti", zh: "吉布提", region: "Africa", flag: "https://flagcdn.com/w320/dj.png" },
+  { name: "Liberia", zh: "利比里亚", region: "Africa", flag: "https://flagcdn.com/w320/lr.png" },
+  { name: "Sierra Leone", zh: "塞拉利昂", region: "Africa", flag: "https://flagcdn.com/w320/sl.png" },
+  { name: "Guinea", zh: "几内亚", region: "Africa", flag: "https://flagcdn.com/w320/gn.png" },
+  { name: "Guinea-Bissau", zh: "几内亚比绍", region: "Africa", flag: "https://flagcdn.com/w320/gw.png" },
+  { name: "Togo", zh: "多哥", region: "Africa", flag: "https://flagcdn.com/w320/tg.png" },
+  { name: "Benin", zh: "贝宁", region: "Africa", flag: "https://flagcdn.com/w320/bj.png" },
+  { name: "Malta", zh: "马耳他", region: "Europe", flag: "https://flagcdn.com/w320/mt.png" },
+  { name: "Luxembourg", zh: "卢森堡", region: "Europe", flag: "https://flagcdn.com/w320/lu.png" },
+  { name: "Iceland", zh: "冰岛", region: "Europe", flag: "https://flagcdn.com/w320/is.png" },
+  { name: "Liechtenstein", zh: "列支敦士登", region: "Europe", flag: "https://flagcdn.com/w320/li.png" },
+  { name: "Monaco", zh: "摩纳哥", region: "Europe", flag: "https://flagcdn.com/w320/mc.png" },
+  { name: "Andorra", zh: "安道尔", region: "Europe", flag: "https://flagcdn.com/w320/ad.png" },
+  { name: "San Marino", zh: "圣马力诺", region: "Europe", flag: "https://flagcdn.com/w320/sm.png" },
+  { name: "Vatican City", zh: "梵蒂冈", region: "Europe", flag: "https://flagcdn.com/w320/va.png" },
+  { name: "Palau", zh: "帕劳", region: "Oceania", flag: "https://flagcdn.com/w320/pw.png" },
+  { name: "Marshall Islands", zh: "马绍尔群岛", region: "Oceania", flag: "https://flagcdn.com/w320/mh.png" },
+  { name: "Kiribati", zh: "基里巴斯", region: "Oceania", flag: "https://flagcdn.com/w320/ki.png" },
+  { name: "Micronesia", zh: "密克罗尼西亚", region: "Oceania", flag: "https://flagcdn.com/w320/fm.png" },
+  { name: "Nauru", zh: "瑙鲁", region: "Oceania", flag: "https://flagcdn.com/w320/nr.png" },
+  { name: "Tuvalu", zh: "图瓦卢", region: "Oceania", flag: "https://flagcdn.com/w320/tv.png" },
+  { name: "Solomon Islands", zh: "所罗门群岛", region: "Oceania", flag: "https://flagcdn.com/w320/sb.png" },
+  { name: "Vanuatu", zh: "瓦努阿图", region: "Oceania", flag: "https://flagcdn.com/w320/vu.png" },
+  { name: "Tonga", zh: "汤加", region: "Oceania", flag: "https://flagcdn.com/w320/to.png" },
+  { name: "Samoa", zh: "萨摩亚", region: "Oceania", flag: "https://flagcdn.com/w320/ws.png" },
+
+//比较偏门的地区
+  { name: "Aruba", zh: "阿鲁巴", region: "North America", flag: "https://flagcdn.com/w320/aw.png" },
+  { name: "Cayman Islands", zh: "开曼群岛", region: "North America", flag: "https://flagcdn.com/w320/ky.png" },
+  { name: "Bermuda", zh: "百慕大", region: "North America", flag: "https://flagcdn.com/w320/bm.png" },
+  { name: "Greenland", zh: "格陵兰", region: "North America", flag: "https://flagcdn.com/w320/gl.png" },
+  { name: "Saint Vincent and the Grenadines", zh: "圣文森特和格林纳丁斯", region: "North America", flag: "https://flagcdn.com/w320/vc.png" },
+  { name: "Montserrat", zh: "蒙特塞拉特", region: "North America", flag: "https://flagcdn.com/w320/ms.png" },
+  { name: "Guadeloupe", zh: "瓜德罗普", region: "North America", flag: "https://flagcdn.com/w320/gp.png" },
+  { name: "Martinique", zh: "马提尼克", region: "North America", flag: "https://flagcdn.com/w320/mq.png" },
+  { name: "French Guiana", zh: "法属圭亚那", region: "South America", flag: "https://flagcdn.com/w320/gf.png" },
+  { name: "Saint Barthelemy", zh: "圣巴泰勒米", region: "North America", flag: "https://flagcdn.com/w320/bl.png" },
+  { name: "Anguilla", zh: "安圭拉", region: "North America", flag: "https://flagcdn.com/w320/ai.png" },
+  { name: "Guam", zh: "关岛", region: "Oceania", flag: "https://flagcdn.com/w320/gu.png" },
+  { name: "Northern Mariana Islands", zh: "北马里亚纳群岛", region: "Oceania", flag: "https://flagcdn.com/w320/mp.png" },
+  { name: "Cook Islands", zh: "库克群岛", region: "Oceania", flag: "https://flagcdn.com/w320/ck.png" },
+  { name: "American Samoa", zh: "美属萨摩亚", region: "Oceania", flag: "https://flagcdn.com/w320/as.png" },
+  { name: "Wallis and Futuna", zh: "瓦利斯和富图纳", region: "Oceania", flag: "https://flagcdn.com/w320/wf.png" },
+  { name: "French Polynesia", zh: "法属波利尼西亚", region: "Oceania", flag: "https://flagcdn.com/w320/pf.png" },
+  { name: "New Caledonia", zh: "新喀里多尼亚", region: "Oceania", flag: "https://flagcdn.com/w320/nc.png" },
+  { name: "Niue", zh: "纽埃", region: "Oceania", flag: "https://flagcdn.com/w320/nu.png" },
+  { name: "Pitcairn Islands", zh: "皮特凯恩群岛", region: "Oceania", flag: "https://flagcdn.com/w320/pn.png" },
+  { name: "Saint Helena", zh: "圣赫勒拿", region: "Africa", flag: "https://flagcdn.com/w320/sh.png" },
+  { name: "Ascension and Tristan da Cunha", zh: "阿森松岛和特里斯坦-达库尼亚", region: "Africa", flag: "https://flagcdn.com/w320/ta.png" },
+  { name: "Reunion", zh: "留尼汪", region: "Africa", flag: "https://flagcdn.com/w320/re.png" },
+  { name: "Mayotte", zh: "马约特", region: "Africa", flag: "https://flagcdn.com/w320/yt.png" },
+  { name: "Saint Pierre and Miquelon", zh: "圣皮埃尔和密克隆", region: "North America", flag: "https://flagcdn.com/w320/pm.png" },
+  { name: "Falkland Islands", zh: "福克兰群岛", region: "South America", flag: "https://flagcdn.com/w320/fk.png" },
+  { name: "South Georgia and the South Sandwich Islands", zh: "南乔治亚和南桑威奇群岛", region: "South America", flag: "https://flagcdn.com/w320/gs.png" },
+  { name: "Norfolk Island", zh: "诺福克岛", region: "Oceania", flag: "https://flagcdn.com/w320/nf.png" },
+  { name: "Tokelau", zh: "托克劳", region: "Oceania", flag: "https://flagcdn.com/w320/tk.png" },
+  { name: "Christmas Island", zh: "圣诞岛", region: "Oceania", flag: "https://flagcdn.com/w320/cx.png" },
+  { name: "Cocos (Keeling) Islands", zh: "科科斯（基林）群岛", region: "Oceania", flag: "https://flagcdn.com/w320/cc.png" },
+  { name: "Bonaire", zh: "博内尔", region: "North America", flag: "https://flagcdn.com/w320/bq.png" },
+  { name: "Sint Eustatius", zh: "圣尤斯特歇斯", region: "North America", flag: "https://flagcdn.com/w320/bq.png" },
+  { name: "Saba", zh: "萨巴", region: "North America", flag: "https://flagcdn.com/w320/bq.png" },
+  { name: "Curacao", zh: "库拉索", region: "North America", flag: "https://flagcdn.com/w320/cw.png" },
+  { name: "Sint Maarten", zh: "荷属圣马丁", region: "North America", flag: "https://flagcdn.com/w320/sx.png" },
+  { name: "Caribbean Netherlands", zh: "加勒比荷兰", region: "North America", flag: "https://flagcdn.com/w320/bq.png" },
+  { name: "Ashmore and Cartier Islands", zh: "阿什莫尔和卡捷岛", region: "Oceania", flag: "https://flagcdn.com/w320/x.png" },
+  { name: "Coral Sea Islands", zh: "珊瑚海群岛", region: "Oceania", flag: "https://flagcdn.com/w320/x.png" }
+
+
+
+
+
+      // 可继续添加更多国家
+    ];
+
+    let currentLevel = 1;
+    let score = 0;
+    let errors = 0;
+    let timer = 0;
+    let timerInterval;
+    let timerStarted = false;
+
+    const gameBoard = document.getElementById("gameBoard");
+    const message = document.getElementById("message");
+    const nextLevelButton = document.getElementById("nextLevel");
+    const prevLevelButton = document.getElementById("prevLevel");
+    const refreshButton = document.getElementById("refresh");
+    const timerDisplay = document.getElementById("timer");
+    const scoreDisplay = document.getElementById("score");
+    const errorsDisplay = document.getElementById("errors");
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function playSound(text, lang = "en-US") {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang;
+      speechSynthesis.speak(utterance);
+    }
+
+    function setupGame(level) {
+      clearInterval(timerInterval);
+      timer = 0;
+      timerStarted = false;
+      timerDisplay.textContent = `时间：0秒`;
+      const levelCountries = countries.slice((level - 1) * 10, level * 10); // 每关10对国家
+      const cards = [];
+      levelCountries.forEach(country => {
+        cards.push({ type: "flag", name: country.name, zh: country.zh, region: country.region, flag: country.flag });
+        cards.push({ type: "name_en", name: country.name, zh: country.zh, region: country.region });
+        cards.push({ type: "name_zh", name: country.name, zh: country.zh, region: country.region });
+      });
+
+      shuffle(cards);
+      gameBoard.innerHTML = "";
+      cards.forEach(card => {
+        const div = document.createElement("div");
+        div.className = "card";
+        div.dataset.name = card.name;
+        div.dataset.type = card.type;
+
+        if (card.type === "flag") {
+          const img = document.createElement("img");
+          img.src = card.flag;
+          img.alt = card.name;
+          div.appendChild(img);
+        } else if (card.type === "name_en") {
+          const span = document.createElement("span");
+          span.textContent = card.name;
+          div.appendChild(span);
+        } else if (card.type === "name_zh") {
+          const span = document.createElement("span");
+          span.textContent = card.zh;
+          div.appendChild(span);
+        }
+
+        gameBoard.appendChild(div);
+      });
+
+      addCardListeners();
+    }
+
+    function addCardListeners() {
+      const cards = document.querySelectorAll(".card");
+      let selectedCards = [];
+      let totalCards = cards.length;
+
+      cards.forEach(card => {
+        card.addEventListener("click", () => {
+          if (card.classList.contains("hidden") || selectedCards.includes(card)) return;
+
+          if (!timerStarted) {
+            timerStarted = true;
+            timerInterval = setInterval(() => {
+              timer++;
+              timerDisplay.textContent = `时间：${timer}秒`;
+            }, 1000);
+          }
+
+          if (card.dataset.type === "name_zh") {
+            playSound(card.textContent, "zh-CN");
+          } else if (card.dataset.type === "flag") {
+            playSound(card.dataset.name, "en-US");
+          } else {
+            playSound(card.textContent, "en-US");
+          }
+
+          selectedCards.push(card);
+          card.style.backgroundColor = "#d3f8d3";
+
+          if (selectedCards.length === 3) {
+            const [first, second, third] = selectedCards;
+            if (first.dataset.name === second.dataset.name && second.dataset.name === third.dataset.name) {
+              [first, second, third].forEach(card => {
+                card.classList.add("hidden");
+              });
+              score += 10;
+              scoreDisplay.textContent = `得分：${score}`;
+              totalCards -= 3;
+
+              if (totalCards === 0) {
+                clearInterval(timerInterval);
+                message.textContent = `关卡完成！用时：${timer}秒`;
+              }
+              selectedCards = [];
+            } else {
+              setTimeout(() => {
+                selectedCards.forEach(card => (card.style.backgroundColor = "#fff"));
+                selectedCards = [];
+              }, 500);
+              errors++;
+              errorsDisplay.textContent = `错误：${errors}次`;
+            }
+          }
+        });
+      });
+    }
+
+    refreshButton.addEventListener("click", () => {
+      setupGame(currentLevel);
+    });
+
+    nextLevelButton.addEventListener("click", () => {
+      if (currentLevel < Math.ceil(countries.length / 10)) {
+        currentLevel++;
+        setupGame(currentLevel);
+        prevLevelButton.disabled = false;
+      }
+      if (currentLevel === Math.ceil(countries.length / 10)) {
+        nextLevelButton.disabled = true;
+      }
+    });
+
+    prevLevelButton.addEventListener("click", () => {
+      if (currentLevel > 1) {
+        currentLevel--;
+        setupGame(currentLevel);
+        nextLevelButton.disabled = false;
+      }
+      if (currentLevel === 1) {
+        prevLevelButton.disabled = true;
+      }
+    });
+
+    setupGame(currentLevel);
+  </script>
+</body>
+</html>
